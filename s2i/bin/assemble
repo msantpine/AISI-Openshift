@@ -1,0 +1,12 @@
+#!/bin/bash
+
+APPDIR="/src/app"
+
+
+# Install dependencies
+pushd ${APPDIR} # Change to the dependencies are (package.json)
+
+npm install
+RUN npm install nodemon -g
+
+popd # Go back to the previous path

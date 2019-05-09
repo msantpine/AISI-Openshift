@@ -1,0 +1,6 @@
+#!/bin/bash
+
+APPDIR="/src/app"
+
+# run the application
+nodemon ${APPDIR}/index.js
