@@ -3,4 +3,4 @@
 APPDIR="/src/app"
 
 # run the application
-nodemon ${APPDIR}/index.js
+npm run start

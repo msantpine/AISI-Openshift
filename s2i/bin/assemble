@@ -7,6 +7,6 @@ APPDIR="/src/app"
 pushd ${APPDIR} # Change to the dependencies are (package.json)
 
 npm install
-RUN npm install nodemon -g
+npm install nodemon 
 
 popd # Go back to the previous path

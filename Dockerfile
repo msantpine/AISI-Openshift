@@ -4,6 +4,7 @@ ARG GROUP=1000
 ARG USER=1000
 ARG S2IDIR="/home/s2i"
 ARG APPDIR="/src/app"
+ARG TESTDIR="/src/app/tests"
 
 LABEL io.openshift.expose-services="8080:http" \
       io.openshift.tags="builder,nodejs" \
@@ -12,13 +13,12 @@ LABEL io.openshift.expose-services="8080:http" \
 COPY s2i ${S2IDIR}
 RUN chmod 777 -R ${S2IDIR}
 
-COPY src/* ${APPDIR}}
+COPY src/. ${APPDIR}
+COPY tests/. ${TESTDIR}
 
-# Add user & group
-RUN groupadd ${GROUP}} \
-    && useradd -g ${GROUP}} ${USER} \
-    && chown -R ${USER}:${GROUP}} ${APPDIR} \
-    && chmod +x ${APPDIR}/index.js
+RUN groupadd ${GROUP} \
+    && useradd -g ${GROUP} ${USER} \
+    && chmod -R 777 ${APPDIR}
 
 WORKDIR ${APPDIR}
 
