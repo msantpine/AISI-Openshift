@@ -5,6 +5,10 @@ ARG USER=1000
 ARG S2IDIR="/home/s2i"
 ARG APPDIR="/src/app"
 
+LABEL io.openshift.expose-services="8080:http" \
+      io.openshift.tags="builder,nodejs" \
+      io.openshift.s2i.scripts-url="image://$S2IDIR/bin"
+
 COPY s2i ${S2IDIR}
 RUN chmod 777 -R ${S2IDIR}
 
