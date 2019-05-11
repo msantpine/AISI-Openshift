@@ -1,0 +1,248 @@
+---
+kind: Template
+apiVersion: v1
+metadata:
+  name: nodejs-app
+  annotations:
+    description: "This is a deployment test using Templates"
+objects:
+  # Redis
+  - kind: Service
+    apiVersion: v1
+    metadata:
+      name: ${REDIS_SVC_NAME}
+    spec:
+      ports:
+        - name: db
+          port: 6379
+          targetPort: 6379
+      selector:
+        name: ${REDIS_PO_NAME}
+        docker-registry: default
+  - kind: DeploymentConfig
+    apiVersion: v1
+    metadata:
+      name: ${REDIS_DC_NAME}
+      annotations:
+        description: Defines how to deploy the db server
+        template.alpha.openshift.io/wait-for-ready: "true"
+    spec:
+      strategy:
+        type: Recreate
+      triggers:
+        - type: ConfigChange
+          type: ImageChange
+          imageChangeParams:
+            automatic: true
+            containerNames:
+              - ${REDIS_CONT_NAME}
+            from:
+              kind: ImageStreamTag
+              name: redis:latest
+              namespace: openshift
+      replicas: 1
+      selector:
+        name: ${REDIS_PO_NAME}
+      template:
+        metadata:
+          name: ${REDIS_PO_NAME}-template
+          labels:
+            name: ${REDIS_PO_NAME}
+            docker-registry: default
+        spec:
+          containers:
+            - name: ${REDIS_CONT_NAME}
+              image: " "
+              ports:
+                - containerPort: 6379
+                  protocol: TCP
+              resources:  # Limits CPU, RAM, etc
+                memory: ${MEMORY_LIMIT}
+                
+  # NodeJS
+  - kind: ImageStream
+    apiVersion: v1
+    metadata:
+      name: ${NODEJS_IS_NAME} 
+  - kind: BuildConfig
+    apiVersion: v1
+    metadata:
+      name: ${NODEJS_BC_NAME}
+      annotations:
+        description: Defines how to build the application server
+        template.alpha.openshift.io/wait-for-ready: "true"
+        service.alpha.openshift.io/dependencies: "[{\"name\": \"redis-svc\", \"kind\": \"Service\"}]"
+    spec:
+      strategy:
+        sourceStrategy:
+          type: Source
+          from:
+            kind: DockerImage
+            name: msantpine/nodejs:latest
+          pullSecret:
+            name: docker-secret
+      serviceAccount: builder
+      postCommit:
+        script: npm test
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${NODEJS_IS_NAME}:latest
+      triggers:
+        - type: ImageChange
+          type: ConfigChange
+  - kind: Service
+    apiVersion: v1
+    metadata: 
+      name: ${NODEJS_SVC_NAME}
+    spec:
+      ports:
+        - name: web
+          port: 8080
+          targetPort: 8080
+      selector:
+        name: ${NODEJS_PO_NAME}
+        docker-registry: default
+  - kind: Route
+    apiVersion: v1
+    metadata:
+      name: ${NODEJS_ROUTE_NAME}
+      annotations:
+        description: Defines which service to expose
+    spec:
+      to:
+        kind: Service
+        name: ${NODEJS_SVC_NAME}
+  - kind: DeploymentConfig
+    apiVersion: v1
+    metadata:
+      name: ${NODEJS_DC_NAME}
+      annotations:
+        description: Defines how to deploy the application server
+        template.alpha.openshift.io/wait-for-ready: "true"
+    spec:
+      strategy:
+        type: Recreate
+      triggers:
+        - type: ConfigChange
+          type: ImageChange
+          imageChangeParams:
+            automatic: true
+            containerNames:
+              - ${NODEJS_CONT_NAME}
+            from:
+              kind: ImageStreamTag
+              name: ${NODEJS_IS_NAME}:latest
+      replicas: 3
+      selector:
+        name: ${NODEJS_PO_NAME}
+      template:
+        metadata:
+          name: ${NODEJS_PO_NAME}-template
+          labels:
+            name: ${NODEJS_PO_NAME}
+            docker-registry: default
+        spec:
+          containers:
+            - name: ${NODEJS_CONT_NAME}
+              image: " "
+              env:
+                - name: REDIS_ADDR
+                  value: ${REDIS_SVC_NAME}
+              ports:
+                - containerPort: 8080
+                  protocol: TCP
+              resources:  
+                limits: # Limits CPU, RAM, etc
+                  cpu: ${CPU_LIMIT}
+                  memory: ${MEMORY_LIMIT}
+              readinessProbe:
+                timeoutSeconds: 3
+                initialDelaySeconds: 3
+                httpGet:
+                  path: /heartbeat
+                  port: 8080
+              livenessProbe:
+                timeoutSeconds: 3
+                initialDelaySeconds: 30
+                httpGet:
+                  path: /heartbeat
+                  port: 8080
+              
+parameters:
+# Global parameters
+  - description: Projects' name
+    displayName: ProjectName
+    name: PROJECT_NAME
+    required: true
+    value: test
+  - description: Sets a limit to the size of the cpu allocated for each pod
+    displayName: CPULimit
+    name: CPU_LIMIT
+    required: true
+    value: 200m
+  - description: Sets a limit to the size of the ram allocated for each pod
+    displayName: MemoryLimit
+    name: MEMORY_LIMIT
+    required: true
+    value: 256Mi
+
+  # Redis related
+  - description: Redis container
+    displayName: RedisContName
+    name: REDIS_CONT_NAME
+    required: true
+    value: redis-cont
+  - description: Name which will receive redis' deployment configure
+    displayName: RedisDCName
+    name: REDIS_DC_NAME
+    required: true
+    value: redis-dc
+  - description: Name that will receive the service of redis
+    displayName: RedisSrvName
+    name: REDIS_SVC_NAME
+    required: true
+    value: redis-svc
+  - description: Name of redis pods
+    displayName: RedisPodsName
+    name: REDIS_PO_NAME
+    required: true
+    value: redis-po
+
+  # NodeJS related
+  - description: Name that will receive the image stream for the nodejs image
+    displayName: NodeJSIsName
+    name: NODEJS_IS_NAME
+    required: true
+    value: nodejs-is
+  - description: NodeJS container
+    displayName: NodeJSContName
+    name: NODEJS_CONT_NAME
+    required: true
+    value: nodejs-cont
+  - description: Name which will receive nodejs' deployment configure
+    displayName: NodeJSDCName
+    name: NODEJS_DC_NAME
+    required: true
+    value: nodejs-dc
+  - description: Name that will receive the route which exposes nodejs' service
+    displayName: NodeJSRouteName
+    name: NODEJS_ROUTE_NAME
+    required: true
+    value: nodejs-route
+  - description: Name that will receive the service of nodejs
+    displayName: NodeJSSvcName
+    name: NODEJS_SVC_NAME
+    required: true
+    value: nodejs-svc
+  - description: Name of the Building configuration of nodejs
+    displayName: NodeJSBcName
+    name: NODEJS_BC_NAME
+    required: true
+    value: nodejs-bc
+  - description: Name of the pods
+    displayName: PodsName
+    name: NODEJS_PO_NAME
+    required: true
+    value: nodejs-po
+  
