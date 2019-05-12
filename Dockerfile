@@ -13,12 +13,13 @@ LABEL io.openshift.expose-services="8080:http" \
 COPY s2i ${S2IDIR}
 RUN chmod 777 -R ${S2IDIR}
 
-COPY src/. ${APPDIR}
-COPY tests/. ${TESTDIR}
+COPY src/package.json ${APPDIR}/package.json
+COPY src/tests/. ${TESTDIR}
 
 RUN groupadd ${GROUP} \
     && useradd -g ${GROUP} ${USER} \
-    && chmod -R 777 ${APPDIR}
+    && chmod a+rwx -R ${APPDIR} 
+    
 
 WORKDIR ${APPDIR}
 

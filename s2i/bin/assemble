@@ -2,11 +2,15 @@
 
 APPDIR="/src/app"
 
+# Move clone repository files from /tmp to the app directory
+pushd /tmp 
+mv src/* ${APPDIR}
+popd # Go back to the previous path
 
 # Install dependencies
-pushd ${APPDIR} # Change to the dependencies are (package.json)
+pushd ${APPDIR}
 
 npm install
 npm install nodemon 
 
-popd # Go back to the previous path
+popd
